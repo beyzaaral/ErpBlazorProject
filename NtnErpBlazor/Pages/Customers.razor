@@ -1,0 +1,253 @@
+﻿@page "/customers"
+
+<h3>Customer Management (ERP Style)</h3>
+
+<div class="row mt-3">
+    <!-- FORM BÖLÜMÜ -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                Customer Card
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="form-label">Code</label>
+                    <input class="form-control" @bind="editModel.Code" />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Name</label>
+                    <input class="form-control" @bind="editModel.Name" />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Country</label>
+                    <input class="form-control" @bind="editModel.Country" />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Credit Limit</label>
+                    <input type="number" class="form-control" @bind="editModel.CreditLimit" />
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-primary btn-sm" @onclick="Save">
+                        Save
+                    </button>
+                    <button class="btn btn-secondary btn-sm" @onclick="New">
+                        New
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="Cancel" disabled="@(!isEditing)">
+                        Cancel
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="mt-2 alert alert-info p-2">
+                        @message
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- LİSTE BÖLÜMÜ -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Customer List</span>
+                <input class="form-control form-control-sm w-50"
+                       placeholder="Search by code or name..."
+                       @bind="searchText"
+                       @bind:event="oninput" />
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;">Id</th>
+                            <th style="width: 120px;">Code</th>
+                            <th>Name</th>
+                            <th style="width: 120px;">Country</th>
+                            <th style="width: 120px;" class="text-end">Credit Limit</th>
+                            <th style="width: 70px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (filteredCustomers.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-3">
+                                    No records found.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var c in filteredCustomers)
+                            {
+                                <tr class="@(selectedCustomer != null && selectedCustomer.Id == c.Id ? "table-primary" : "")"
+                                    @onclick="() => Edit(c)"
+                                    style="cursor: pointer;">
+                                    <td>@c.Id</td>
+                                    <td>@c.Code</td>
+                                    <td>@c.Name</td>
+                                    <td>@c.Country</td>
+                                    <td class="text-end">@c.CreditLimit.ToString("N2")</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-link btn-sm text-danger"
+                                                @onclick:stopPropagation="true"
+                                                @onclick="() => Delete(c)">
+                                            Del
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    
+    public class Customer
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Country { get; set; } = "";
+        public decimal CreditLimit { get; set; }
+    }
+
+    
+    private List<Customer> customers = new();
+    private List<Customer> filteredCustomers => ApplyFilter();
+
+    
+    private Customer editModel = new();
+    private Customer? selectedCustomer;
+    private bool isEditing = false;
+    private string message = "";
+    private string searchText = "";
+
+    protected override void OnInitialized()
+    {
+        
+        customers = new List<Customer>
+        {
+            new() { Id = 1, Code = "CUST-001", Name = "Alpha Packaging", Country = "TR", CreditLimit = 50000 },
+            new() { Id = 2, Code = "CUST-002", Name = "Beta Corrugated", Country = "FR", CreditLimit = 75000 },
+            new() { Id = 3, Code = "CUST-003", Name = "Gamma Box SA", Country = "GR", CreditLimit = 30000 }
+        };
+
+        New();
+    }
+
+    private void New()
+    {
+        editModel = new Customer();
+        selectedCustomer = null;
+        isEditing = false;
+        message = "New customer card.";
+    }
+
+    private void Edit(Customer c)
+    {
+        selectedCustomer = c;
+      
+        editModel = new Customer
+        {
+            Id = c.Id,
+            Code = c.Code,
+            Name = c.Name,
+            Country = c.Country,
+            CreditLimit = c.CreditLimit
+        };
+        isEditing = true;
+        message = $"Editing: {c.Code}";
+    }
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(editModel.Code) || string.IsNullOrWhiteSpace(editModel.Name))
+        {
+            message = "Code and Name are required.";
+            return;
+        }
+
+        if (isEditing && editModel.Id != 0)
+        {
+            
+            var existing = customers.FirstOrDefault(x => x.Id == editModel.Id);
+            if (existing != null)
+            {
+                existing.Code = editModel.Code;
+                existing.Name = editModel.Name;
+                existing.Country = editModel.Country;
+                existing.CreditLimit = editModel.CreditLimit;
+            }
+            message = "Customer updated.";
+        }
+        else
+        {
+            
+            var newId = customers.Any() ? customers.Max(x => x.Id) + 1 : 1;
+            editModel.Id = newId;
+            customers.Add(new Customer
+            {
+                Id = editModel.Id,
+                Code = editModel.Code,
+                Name = editModel.Name,
+                Country = editModel.Country,
+                CreditLimit = editModel.CreditLimit
+            });
+            message = "Customer added.";
+        }
+
+        isEditing = true;
+        selectedCustomer = customers.First(x => x.Id == editModel.Id);
+    }
+
+    private void Delete(Customer c)
+    {
+        customers.Remove(c);
+
+        if (selectedCustomer != null && selectedCustomer.Id == c.Id)
+        {
+            New();
+        }
+
+        message = $"Customer {c.Code} deleted.";
+    }
+
+    private void Cancel()
+    {
+        if (selectedCustomer != null)
+        {
+            Edit(selectedCustomer);
+            message = "Changes cancelled.";
+        }
+        else
+        {
+            New();
+        }
+    }
+
+    private List<Customer> ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return customers.OrderBy(x => x.Code).ToList();
+
+        var txt = searchText.Trim().ToLower();
+        return customers
+            .Where(x =>
+                (x.Code?.ToLower().Contains(txt) ?? false) ||
+                (x.Name?.ToLower().Contains(txt) ?? false))
+            .OrderBy(x => x.Code)
+            .ToList();
+    }
+}
